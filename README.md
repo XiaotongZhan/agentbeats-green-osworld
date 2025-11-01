@@ -14,15 +14,27 @@ poetry install --no-root
 
 ## 1.2 Quickstart Test
 
+### Full AWS Configuration Reference
+
+For detailed setup instructions, see the official guide:
+[OSWorld AWS Guideline](https://github.com/xlang-ai/OSWorld/blob/main/desktop_env/providers/aws/AWS_GUIDELINE.md)
+
+---
+
 ### Required AWS Permissions
 
-The quickstart will create EC2 instances, IAM roles/policies, and other AWS resources. Ensure the IAM user whose access keys you use has sufficient permissions.
+The quickstart will create **EC2 instances**, **IAM roles/policies**, and other AWS resources.
+Ensure the IAM user whose access keys you use has sufficient permissions.
 
 **Minimum (for testing only):**
 
-* `AdministratorAccess`, `AmazonEC2FullAccess`, `IAMFullAccess`
+* `AdministratorAccess`
+* `AmazonEC2FullAccess`
+* `IAMFullAccess`
 
-> Prefer least-privilege in production.
+> Prefer least-privilege configurations for production environments.
+
+---
 
 ### Create Programmatic Credentials (AWS Console)
 
@@ -41,24 +53,31 @@ AWS_REGION=us-east-1
 AWS_DEFAULT_REGION=us-east-1
 AWS_SUBNET_ID=subnet-xxxxxxx
 AWS_SECURITY_GROUP_ID=sg-xxxxxxx
-AWS_ACCESS_KEY_ID=AKIAxxxxxxxxxxxxxxx
-AWS_SECRET_ACCESS_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+AWS_ACCESS_KEY_ID=AKIAxxxxxxx
+AWS_SECRET_ACCESS_KEY=xxxxxxx
+AWS_VPC_ID=vpc-xxxxxxx
 ```
+
+---
 
 ### Load Environment Variables
 
 ```bash
-# Load .env safely and export to the environment
+# Load .env safely and export all key-value pairs
 set -a
 . .env
 set +a
 ```
 
+---
+
 ### Verify Environment
 
 ```bash
-env | grep -E 'AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|AWS_SUBNET_ID|AWS_SECURITY_GROUP_ID|AWS_DEFAULT_REGION|AWS_REGION'
+env | grep -E '^AWS_(ACCESS_KEY_ID|SECRET_ACCESS_KEY|DEFAULT_REGION|REGION|SUBNET_ID|SECURITY_GROUP_ID|VPC_ID|KEY_NAME)' || true
 ```
+
+--- 
 
 ### Run OSWorld Quickstart
 
