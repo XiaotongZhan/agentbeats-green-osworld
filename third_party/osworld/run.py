@@ -108,8 +108,8 @@ def config() -> argparse.Namespace:
 
     # logging related
     parser.add_argument("--result_dir", type=str, default="./results")
+    parser.add_argument("--region", type=str,  default=None, help="AWS region (e.g., us-east-1)",)
     args = parser.parse_args()
-
     return args
 
 
@@ -158,6 +158,7 @@ def test(args: argparse.Namespace, test_all_meta: dict) -> None:
         os_type = "Ubuntu",
         require_a11y_tree=args.observation_type
         in ["a11y_tree", "screenshot_a11y_tree", "som"],
+	region=args.region,
     )
 
     for domain in tqdm(test_all_meta, desc="Domain"):
@@ -218,7 +219,7 @@ def test(args: argparse.Namespace, test_all_meta: dict) -> None:
                     f.write("\n")
 
     env.close()
-    logger.info(f"Average score: {sum(scores) / len(scores) if scores else 0}")
+    logger.info(f"Average score: {sum(scores) / len(scores)}")
 
 
 def get_unfinished(
