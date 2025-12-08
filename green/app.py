@@ -21,7 +21,7 @@ load_dotenv(ROOT / ".env", override=False)
 
 WHITE_AGENT_URL = os.getenv(
     "WHITE_AGENT_URL",
-    f"http://127.0.0.1:{os.getenv('WHITE_PORT','18081')}"
+    f"http://127.0.0.1:{os.getenv('WHITE_PORT', '18081')}"
 )
 OSWORLD_CLIENT_PASSWORD = os.getenv("OSWORLD_CLIENT_PASSWORD", "osworld-public-evaluation")
 
@@ -39,6 +39,7 @@ def _safe_name(s: str) -> str:
     s = re.sub(r"[^A-Za-z0-9_.-]+", "-", (s or "").strip())
     return s[:120] if len(s) > 120 else s
 
+
 def _make_run_dir(task_id: str) -> Path:
     """Create a unique run dir and refresh 'latest' symlink."""
     ts = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
@@ -53,10 +54,12 @@ def _make_run_dir(task_id: str) -> Path:
         pass
     return run_dir
 
+
 async def run_in_thread(func, *args, **kwargs):
     """Run a blocking function in a background thread."""
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, lambda: func(*args, **kwargs))
+
 
 def _classify_failure(exc: Exception) -> str:
     """Classify failure type for structured result metadata."""
@@ -69,6 +72,7 @@ def _classify_failure(exc: Exception) -> str:
         return "unauthorized"
     return "runtime_error"
 
+
 # ---------------- auth helpers ----------------
 def _pick_token_from_headers(x_auth_token: str | None, authorization: str | None) -> str | None:
     """Accept X-Auth-Token or Authorization: Bearer <token>."""
@@ -77,6 +81,7 @@ def _pick_token_from_headers(x_auth_token: str | None, authorization: str | None
     if authorization and authorization.lower().startswith("bearer "):
         return authorization.split(" ", 1)[1].strip()
     return None
+
 
 def _enforce_auth(header_token: str | None = None, path_token: str | None = None) -> None:
     """Enforce auth unless disabled by GREEN_REQUIRE_AUTH=false."""
@@ -88,12 +93,77 @@ def _enforce_auth(header_token: str | None = None, path_token: str | None = None
     if supplied != GREEN_AUTH_TOKEN:
         raise HTTPException(status_code=401, detail="unauthorized")
 
+
 # ---------------- card & signature helpers ----------------
 def _card_payload() -> dict:
-    """Return the static agent capability card plus a backend hint."""
-    payload = CardResponse().model_dump()
-    payload["backend"] = "python-api-no-http"
-    return payload
+    """
+    Return the MCP-style agent card that AgentBeats v2 expects.
+
+    This follows the MCP Agent Card schema (protocolVersion 0.3.0)
+    and describes this service as an OSWorld Green assessment host.
+    """
+    return {
+        "capabilities": {
+            # Green agent uses synchronous HTTP; no token-level streaming
+            "streaming": False
+        },
+        "defaultInputModes": [
+            # Green assessor is typically kicked off via text instructions
+            "text"
+        ],
+        "defaultOutputModes": [
+            "text"
+        ],
+        "description": (
+            "OSWorld desktop benchmark 'Green' assessor agent. "
+            "It hosts the OSWorld GUI environment and evaluates assessee agents "
+            "via the A2A protocol."
+        ),
+        # This name will be shown in the AgentBeats UI
+        "name": "osworld_green_agent_mcp",
+        # AgentBeats controller <-> agent transport
+        "preferredTransport": "JSONRPC",
+        # MCP Agent Card protocol version used by AgentBeats v2
+        "protocolVersion": "0.3.0",
+        "skills": [
+            {
+                # Unique skill identifier
+                "id": "host_assess_osworld_green",
+                "name": "OSWorld-Green assessment hosting",
+                "description": (
+                    "Host and run OSWorld desktop tasks to evaluate assessee agents' "
+                    "GUI control and tool-use capabilities."
+                ),
+                "tags": [
+                    "green agent",
+                    "assessment hosting",
+                    "osworld",
+                    "desktop",
+                ],
+                # Example of how to invoke this assessment host
+                "examples": [
+                    (
+                        "Your task is to instantiate the OSWorld-Green benchmark to "
+                        "test the agent located at:\n"
+                        "<white_agent_url>\n"
+                        "http://localhost:9004/\n"
+                        "</white_agent_url>\n\n"
+                        "You should use the following environment configuration:\n"
+                        "<env_config>\n"
+                        "{\n"
+                        "  \"task_suite\": \"test_small\"\n"
+                        "}\n"
+                        "</env_config>\n"
+                    )
+                ],
+            }
+        ],
+        # AgentBeats backend will fill this with the actual agent URL
+        "url": "",
+        # Reuse the current agent version
+        "version": _agent_version(),
+    }
+
 
 def _agent_version() -> str:
     try:
@@ -101,13 +171,15 @@ def _agent_version() -> str:
     except Exception:
         return "0.1.0"
 
+
 def _iso_utc(ts: float) -> str:
     return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
+
 def _make_env_signature(backend_mode: str, region: str, screen_w: int, screen_h: int) -> str:
     """
-    Deterministic environment signature so平台能做结果去重/分桶。
-    组成：backend_mode, region, screen, python_version, agent_version
+    Deterministic environment signature so the platform can deduplicate / bucket results.
+    Components: backend_mode, region, screen, python_version, agent_version.
     """
     items = {
         "backend": backend_mode,
@@ -119,12 +191,16 @@ def _make_env_signature(backend_mode: str, region: str, screen_w: int, screen_h:
     blob = json.dumps(items, sort_keys=True, separators=(",", ":"))
     return sha256(blob.encode("utf-8")).hexdigest()
 
-def _write_artifact_json(run_dir: Path,
-                         task_id: str,
-                         started_at: float,
-                         finished_at: float) -> str:
+
+def _write_artifact_json(
+    run_dir: Path,
+    task_id: str,
+    started_at: float,
+    finished_at: float,
+) -> str:
     """
-    写入 artifact.json，列出本次 run 的核心产物，返回其文件路径（str）。
+    Write artifact.json listing the core artifacts for this run, and
+    return its file path as a string.
     """
     frames_dir = run_dir / "frames"
     frames = sorted([str(p) for p in frames_dir.glob("*.png")])
@@ -142,6 +218,7 @@ def _write_artifact_json(run_dir: Path,
         json.dump(artifact, f, ensure_ascii=False, indent=2)
     return str(out)
 
+
 # ---------------- FastAPI app ----------------
 app = FastAPI(title="OSWorld Green Agent", version="0.1.0")
 
@@ -152,6 +229,7 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
+
 
 @app.get("/health")
 async def health():
@@ -164,6 +242,7 @@ async def health():
         "white_url": WHITE_AGENT_URL,
         "auth": auth_mode,
     }
+
 
 # ---------- shared /act core ----------
 async def _act_core(req: ActRequest) -> JSONResponse:
@@ -195,7 +274,7 @@ async def _act_core(req: ActRequest) -> JSONResponse:
     reward_final = 0.0
     done = False
 
-    # 统一的对齐字段（先准备好）
+    # Unified metadata fields
     region = os.getenv("AWS_REGION", "<unset>")
     agent_ver = _agent_version()
     env_sig = _make_env_signature(mode, region, screen_w, screen_h)
@@ -222,7 +301,11 @@ async def _act_core(req: ActRequest) -> JSONResponse:
         writer.save_frame(steps, obs.get("screenshot_b64"))
 
         # Main loop
-        while (steps < req.limits.max_steps) and ((time.time() - t0) < req.limits.max_seconds) and not done:
+        while (
+            steps < req.limits.max_steps
+            and (time.time() - t0) < req.limits.max_seconds
+            and not done
+        ):
             steps += 1
 
             observation = Observation(
@@ -240,7 +323,9 @@ async def _act_core(req: ActRequest) -> JSONResponse:
             if action.type == "special":
                 name = (action.name or "").upper()
                 if name == "WAIT":
-                    obs, reward, done, info = await run_in_thread(env.wait, action.pause or 0.5)
+                    obs, reward, done, info = await run_in_thread(
+                        env.wait, action.pause or 0.5
+                    )
                 elif name in ("DONE", "FAIL"):
                     done = True
                     reward = 0.0
@@ -248,7 +333,9 @@ async def _act_core(req: ActRequest) -> JSONResponse:
                 else:
                     obs, reward, done, info = await run_in_thread(env.wait, 0.5)
             elif action.type == "code" and action.code:
-                obs, reward, done, info = await run_in_thread(env.step, action.code, action.pause or 0.5)
+                obs, reward, done, info = await run_in_thread(
+                    env.step, action.code, action.pause or 0.5
+                )
             else:
                 obs, reward, done, info = await run_in_thread(env.wait, 0.5)
 
@@ -269,7 +356,7 @@ async def _act_core(req: ActRequest) -> JSONResponse:
 
         wall = time.time() - t0
 
-        # 先写 result.json，再生成 artifact.json，随后把路径写回 details
+        # Write result.json, then generate artifact.json and attach its path to details
         result = ActResult(
             task_id=assess_id,
             success=(reward_final > 0.0),
@@ -289,7 +376,6 @@ async def _act_core(req: ActRequest) -> JSONResponse:
         writer.write_result(result.model_dump())
 
         artifact_path = _write_artifact_json(run_dir, assess_id, t0, time.time())
-        # 把 artifact 索引补回 details
         result.details["artifact_index"] = artifact_path
 
         writer.write_summary({"start": header, "end": result.model_dump()})
@@ -299,7 +385,7 @@ async def _act_core(req: ActRequest) -> JSONResponse:
         wall = max(0.0, time.time() - t0)
         failure_type = _classify_failure(e)
 
-        # 即便失败也生成 artifact.json（此时 result.json 也会被写入，包含 failure_type）
+        # Even on failure, generate artifact.json with a result.json describing the failure
         result = ActResult(
             task_id=assess_id,
             success=False,
@@ -315,7 +401,9 @@ async def _act_core(req: ActRequest) -> JSONResponse:
                 "message": str(e),
                 "seed": seed_val,
                 "agent_version": _agent_version(),
-                "env_signature": _make_env_signature(mode, os.getenv("AWS_REGION", "<unset>"), screen_w, screen_h),
+                "env_signature": _make_env_signature(
+                    mode, os.getenv("AWS_REGION", "<unset>"), screen_w, screen_h
+                ),
             },
         )
         writer.write_result(result.model_dump())
@@ -334,25 +422,35 @@ async def _act_core(req: ActRequest) -> JSONResponse:
             pass
         writer.close()
 
+
 # ---------- header-auth endpoints (keep existing URLs) ----------
 @app.get("/card")
-async def card(x_auth_token: str | None = Header(default=None),
-               authorization: str | None = Header(default=None)):
+async def card(
+    x_auth_token: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
+):
     _enforce_auth(_pick_token_from_headers(x_auth_token, authorization), None)
     return JSONResponse(content=_card_payload())
 
+
 @app.post("/reset")
-async def reset(x_auth_token: str | None = Header(default=None),
-                authorization: str | None = Header(default=None)):
+async def reset(
+    x_auth_token: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
+):
     _enforce_auth(_pick_token_from_headers(x_auth_token, authorization), None)
     return {"reset": "ok"}
 
+
 @app.post("/act")
-async def act(req: ActRequest,
-              x_auth_token: str | None = Header(default=None),
-              authorization: str | None = Header(default=None)):
+async def act(
+    req: ActRequest,
+    x_auth_token: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
+):
     _enforce_auth(_pick_token_from_headers(x_auth_token, authorization), None)
     return await _act_core(req)
+
 
 # ---------- path-token endpoints: /t/{token}/... ----------
 @app.get("/t/{token}/card")
@@ -360,24 +458,33 @@ async def card_t(token: str):
     _enforce_auth(None, token)
     return JSONResponse(content=_card_payload())
 
+
 @app.post("/t/{token}/reset")
 async def reset_t(token: str):
     _enforce_auth(None, token)
     return {"reset": "ok"}
+
 
 @app.post("/t/{token}/act")
 async def act_t(token: str, req: ActRequest):
     _enforce_auth(None, token)
     return await _act_core(req)
 
-# ---------- well-known endpoints (both header & path auth) ----------
-@app.get("/.well-known/agent-card.json")
-async def well_known_card_header(x_auth_token: str | None = Header(default=None),
-                                 authorization: str | None = Header(default=None)):
-    _enforce_auth(_pick_token_from_headers(x_auth_token, authorization), None)
+
+# ---------- well-known endpoints (PUBLIC for AgentBeats) ----------
+@app.get("/.well-known/agent-card.json", include_in_schema=False)
+async def well_known_card_public():
+    """
+    Public agent card endpoint required by AgentBeats controller/platform.
+    This MUST NOT require authentication, so the controller can fetch it anonymously.
+    """
     return JSONResponse(content=_card_payload())
 
-@app.get("/t/{token}/.well-known/agent-card.json")
-async def well_known_card_token(token: str):
-    _enforce_auth(None, token)
+
+@app.get("/t/{token}/.well-known/agent-card.json", include_in_schema=False)
+async def well_known_card_public_token(token: str):
+    """
+    Public variant of the well-known card under /t/{token}/.
+    Token is kept in the path only for backward compatibility, but no auth is enforced.
+    """
     return JSONResponse(content=_card_payload())

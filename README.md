@@ -1,6 +1,11 @@
-# OSWorld ↔ AgentBeats Green Agent (A2A)
+# OSWorld × AgentBeats: Green Judge & White Agents (A2A Integration)
 
-This project delivers a **Green judge (FastAPI)** that connects **OSWorld** to **AgentBeats** via a minimal **A2A** contract. Any White Agent that implements `/act` can plug in, operate the OSWorld desktop, and return standardized results and artifacts.
+This project provides:
+
+* a **Green judge (FastAPI)** that runs OSWorld desktops and evaluates agents via an **A2A** contract, and
+* baseline **White agents** (e.g., `white_sim`) that implement `/act`.
+
+Any external White agent that speaks the same A2A contract can plug in and operate the OSWorld desktop.
 
 ## 1) Quickstart
 
@@ -129,12 +134,14 @@ cs294-ai-agent/
 │  ├─ setup_env.sh                 # load .env, activate conda, print masked vars
 │  ├─ start_green.sh               # start Green (port guard, logs, backend guard)
 │  ├─ stop_green.sh                # stop Green
-│  ├─ start_white_sim.sh           # start baseline White (WAIT→SCROLL→DONE)
+│  ├─ start_white_sim.sh           # start baseline White
 │  ├─ stop_white_sim.sh            # stop baseline White
-│  ├─ green_smoke.sh               # one-button smoke /act (curl; auto-auth)
+│  ├─ green_smoke.sh               # one-button smoke /act (curl; auto-auth, direct Green)
+│  ├─ test_green_smoke.sh          # dev helper: extra smoke test for Green endpoint
 │  ├─ run_slice.sh                 # batch runner (small/domain/single/random/indices)
-│  └─ a2a_probe.sh                 # AgentBeats-like probe (/card + /act×k)
-│
+│  ├─ start_agentbeats_ctrl.sh     # start AgentBeats controller (manages Green for AB)
+│  └─ stop_agentbeats_ctrl.sh      # stop AgentBeats controller
+|
 ├─ green/
 │  ├─ app.py                       # /card /reset /act; auth (header/path); .well-known
 │  ├─ a2a_models.py                # A2A request/response/action/observation schemas
@@ -143,25 +150,11 @@ cs294-ai-agent/
 │  ├─ result_writer.py             # result.json, trace.jsonl, frames, artifact.json
 │  └─ validators.py                # env guards (no HTTP backend, etc.)
 │
-├─ white_sim/
-│  └─ server.py                    # toy White: /card /reset /act (WAIT→SCROLL→DONE)
-│
 ├─ run_modes/
 │  └─ runner.py                    # unified batch runner (slice/filter/auth/CSV+JSONL)
 │
-├─ tools/
-│  └─ a2a_probe.py                 # A2A probe (GET /card, POST /act×k)
-│
-├─ results/
-│  ├─ green_runs/<task_id>-<UTC>/  # per-run artifacts
-│  └─ summary/                     # batch summaries
-│
 └─ third_party/osworld/            # vendored upstream (no changes)
 ```
-
-
-> When exposing the Green service publicly, open **TCP 18080** to your **own IP** in the security group (avoid `0.0.0.0/0`).
-
 
 ## 4) White A2A
 
@@ -239,16 +232,9 @@ source scripts/setup_env.sh
 ./scripts/green_smoke.sh
 ```
 
-### 6.2 A2A probe (AgentBeats-like)
-
-```bash
-# Run “/card once + /act k times” with auth automatically
-./scripts/a2a_probe.sh 5
-```
-
 ---
 
-### 6.3 Batch slices (offline metrics)
+### 6.2 Batch slices (offline metrics)
 
 You can batch-run OSWorld tasks through the Green A2A endpoint to produce repeatable, platform-friendly metrics.
 
@@ -392,3 +378,80 @@ python run_modes/runner.py \
   --timeout 1200 \
   --token "$GREEN_AUTH_TOKEN"
 ```
+
+
+## 7) AgentBeats Controller Integration (Green as Remote Judge)
+
+This section explains how to expose the **OSWorld Green agent** behind an **AgentBeats controller** on your own server, so that it can be registered and used from the AgentBeats web UI.
+
+
+### 7.1 Start the AgentBeats controller on your server
+
+On **your server**, from the project root, simply run:
+
+```bash
+bash scripts/start_agentbeats_ctrl.sh
+```
+
+To stop the controller (and the managed Green instance), run:
+
+```bash
+bash scripts/stop_agentbeats_ctrl.sh
+```
+
+> If you want to run this on a different port or with a different public host,
+> edit `scripts/start_agentbeats_ctrl.sh` and adjust `CLOUDRUN_HOST`, `HOST`, and `PORT` accordingly.
+
+### 7.2 Check the controller + Green from the server
+
+The easiest way to confirm that the **AgentBeats controller + Green agent** are working is to open the controller info page in a browser:
+
+* If you are on the **server itself** (SSH with port-forwarding or X11 etc.):
+
+  ```text
+  http://127.0.0.1:18080/info
+  ```
+
+* If you are checking from **another machine** and your server has a public IP, use that IP instead, for example:
+
+  ```text
+  http://107.21.71.139:18080/info
+  ```
+
+On that page, verify two things:
+
+1. At the top, the status card shows:
+
+   ```text
+   Running Agent / Maintained Agent  1 / 1
+   ```
+
+   This means the controller has successfully started exactly one Green agent and is maintaining it.
+
+2. In the **“Agent Instances”** section at the bottom:
+
+   * Expand the single agent card.
+   * Open the **“Agent Card”** panel.
+   * You should see a JSON MCP card (with fields like `name`, `protocolVersion`, `skills`, etc.), **without** any red error message about local IPs.
+
+
+---
+
+### 7.3 Register the Green controller on AgentBeats
+
+Once the controller is running and the info page looks good (Section 7.1–7.2):
+
+1. Open the official platform guide:
+   [Notes – Using the agentbeats v2 platform – 2025.11](https://docs.google.com/presentation/d/1g6D9a_uUiqudNlRvoRy4L4JmHkdMinFSTBra6bPgayM/edit)
+
+2. In that slide, follow the steps for **registering a agent** on AgentBeats.
+
+3. When the guide asks you to fill in the **Controller URL**, use the Green controller you just started:
+
+   ```text
+   http://YOUR_PUBLIC_HOST:18080
+   ```
+
+4. Complete the remaining steps exactly as described in the slides.
+
+Once you finish the registration flow in the slides, your OSWorld Green agent (controller at `:18080`) will be available on the AgentBeats platform and can be used in battles/evaluations.

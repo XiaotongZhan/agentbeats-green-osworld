@@ -97,3 +97,5 @@ Thumbs.db
 *.tar
 *.gz
 *.7z
+
+.ab/
