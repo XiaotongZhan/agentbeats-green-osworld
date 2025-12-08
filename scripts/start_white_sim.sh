@@ -4,7 +4,7 @@ cd "$(dirname "$0")/.." || exit 1
 
 # Load env & defaults
 source scripts/setup_env.sh
-PORT="${WHITE_PORT:-18081}"
+PORT="${WHITE_PORT:-18082}"
 LOG_DIR="logs/white"
 mkdir -p "$LOG_DIR"
 

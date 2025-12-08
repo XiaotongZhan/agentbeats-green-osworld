@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.." || exit 1
-PORT="${WHITE_PORT:-18081}"
+PORT="${WHITE_PORT:-18082}"
 LOG_DIR="logs/white"
 
 if [ -f "$LOG_DIR/white.pid" ]; then

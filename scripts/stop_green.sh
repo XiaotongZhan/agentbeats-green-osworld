@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.." || exit 1
-PORT="${GREEN_AGENT_PORT:-18080}"
+PORT="${GREEN_AGENT_PORT:-18081}"
 LOG_DIR="logs/green"
 
 if [ -f "$LOG_DIR/green.pid" ]; then

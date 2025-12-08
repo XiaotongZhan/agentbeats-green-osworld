@@ -4,7 +4,7 @@ cd "$(dirname "$0")/.." || exit 1
 
 # Load env & defaults
 source scripts/setup_env.sh
-PORT="${GREEN_AGENT_PORT:-18080}"
+PORT="${GREEN_AGENT_PORT:-18081}"
 HOST="${GREEN_AGENT_HOST:-127.0.0.1}"
 LOG_DIR="logs/green"
 mkdir -p "$LOG_DIR"
