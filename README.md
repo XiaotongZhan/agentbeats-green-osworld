@@ -63,6 +63,7 @@ PY
 
 ```bash
 # Load env + print masked key vars
+chmod +x scripts/*.sh
 source scripts/setup_env.sh
 
 # Start a baseline White (replace with your White URL anytime)
@@ -85,7 +86,7 @@ curl -s "http://127.0.0.1:${GREEN_AGENT_PORT}/health" | jq .
 ./scripts/run_slice.sh random 5
 ```
 
-For full control (slice choice, filters, auth, etc.), see [§6.3 Batch slices (offline metrics)](#63-batch-slices-offline-metrics).
+For full control (slice choice, filters, auth, etc.), see [§6.2 Batch slices (offline metrics)](#62-batch-slices-offline-metrics).
 
 
 Outputs:
@@ -364,7 +365,7 @@ python run_modes/runner.py \
 python run_modes/runner.py \
   --mode small \
   --slice verified_small \
-  --host A.B.C.D --port 18080 \
+  --host A.B.C.D --port 18081 \
   --use-path-token --token "$GREEN_AUTH_TOKEN"
 ```
 
@@ -406,16 +407,19 @@ bash scripts/stop_agentbeats_ctrl.sh
 
 The easiest way to confirm that the **AgentBeats controller + Green agent** are working is to open the controller info page in a browser:
 
+> If running on AWS EC2, remember to add **port 20080** to the inbound rules (Security Group) before accessing the controller page.
+
+
 * If you are on the **server itself** (SSH with port-forwarding or X11 etc.):
 
   ```text
-  http://127.0.0.1:18080/info
+  http://127.0.0.1:20080/info
   ```
 
 * If you are checking from **another machine** and your server has a public IP, use that IP instead, for example:
 
   ```text
-  http://107.21.71.139:18080/info
+  http://107.21.71.139:20080/info
   ```
 
 On that page, verify two things:
@@ -449,9 +453,9 @@ Once the controller is running and the info page looks good (Section 7.1–7.2):
 3. When the guide asks you to fill in the **Controller URL**, use the Green controller you just started:
 
    ```text
-   http://YOUR_PUBLIC_HOST:18080
+   http://YOUR_PUBLIC_HOST:20080
    ```
 
 4. Complete the remaining steps exactly as described in the slides.
 
-Once you finish the registration flow in the slides, your OSWorld Green agent (controller at `:18080`) will be available on the AgentBeats platform and can be used in battles/evaluations.
+Once you finish the registration flow in the slides, your OSWorld Green agent (controller at `:20080`) will be available on the AgentBeats platform and can be used in battles/evaluations.
