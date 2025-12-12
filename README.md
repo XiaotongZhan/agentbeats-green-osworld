@@ -136,10 +136,16 @@ cs294-ai-agent/
 │  ├─ start_green.sh               # start Green (port guard, logs, backend guard)
 │  ├─ stop_green.sh                # stop Green
 │  ├─ start_white_sim.sh           # start baseline White
+│  ├─ start_white_sim.sh           # start baseline White
 │  ├─ stop_white_sim.sh            # stop baseline White
 │  ├─ green_smoke.sh               # one-button smoke /act (curl; auto-auth, direct Green)
 │  ├─ test_green_smoke.sh          # dev helper: extra smoke test for Green endpoint
+│  ├─ green_smoke.sh               # one-button smoke /act (curl; auto-auth, direct Green)
+│  ├─ test_green_smoke.sh          # dev helper: extra smoke test for Green endpoint
 │  ├─ run_slice.sh                 # batch runner (small/domain/single/random/indices)
+│  ├─ start_agentbeats_ctrl.sh     # start AgentBeats controller (manages Green for AB)
+│  └─ stop_agentbeats_ctrl.sh      # stop AgentBeats controller
+|
 │  ├─ start_agentbeats_ctrl.sh     # start AgentBeats controller (manages Green for AB)
 │  └─ stop_agentbeats_ctrl.sh      # stop AgentBeats controller
 |
@@ -235,6 +241,7 @@ source scripts/setup_env.sh
 
 ---
 
+### 6.2 Batch slices (offline metrics)
 ### 6.2 Batch slices (offline metrics)
 
 You can batch-run OSWorld tasks through the Green A2A endpoint to produce repeatable, platform-friendly metrics.
@@ -381,7 +388,7 @@ python run_modes/runner.py \
 ```
 
 
-## 7) AgentBeats Controller Integration (Green as Remote Judge)
+## 7) AgentBeats Controller Integration (Green as Remote Judge/ White)
 
 This section explains how to expose the **OSWorld Green agent** behind an **AgentBeats controller** on your own server, so that it can be registered and used from the AgentBeats web UI.
 
@@ -391,13 +398,25 @@ This section explains how to expose the **OSWorld Green agent** behind an **Agen
 On **your server**, from the project root, simply run:
 
 ```bash
-bash scripts/start_agentbeats_ctrl.sh
+bash scripts/start_agentbeats_ctrl_green.sh
+```
+
+For White_sim:
+
+```bash
+bash scripts/start_agentbeats_ctrl_white.sh
 ```
 
 To stop the controller (and the managed Green instance), run:
 
 ```bash
-bash scripts/stop_agentbeats_ctrl.sh
+bash scripts/stop_agentbeats_ctrl_green.sh
+```
+
+For White_sim:
+
+```bash
+bash scripts/stop_agentbeats_ctrl_white.sh
 ```
 
 > If you want to run this on a different port or with a different public host,
@@ -415,6 +434,8 @@ The easiest way to confirm that the **AgentBeats controller + Green agent** are 
   ```text
   http://127.0.0.1:20080/info
   ```
+
+> For White_sim: the default port is 20081
 
 * If you are checking from **another machine** and your server has a public IP, use that IP instead, for example:
 
